@@ -5,11 +5,11 @@ name: Build and Publish WARP Image
     branches:
       - main
     paths:
-      - cloudflare/warp/**
+      - warp/**
       - .github/workflows/build-warp.yml
   pull_request:
     paths:
-      - cloudflare/warp/**
+      - warp/**
   workflow_dispatch:
     inputs:
       GOST_VERSION:
@@ -169,8 +169,8 @@ jobs:
       - name: Build and load test image
         uses: docker/build-push-action@v6
         with:
-          context: cloudflare/warp
-          file: cloudflare/warp/Dockerfile
+          context: warp
+          file: warp/Dockerfile
           platforms: linux/amd64
           load: true
           push: false
@@ -343,8 +343,8 @@ jobs:
       - name: Build and push image
         uses: docker/build-push-action@v6
         with:
-          context: cloudflare/warp
-          file: cloudflare/warp/Dockerfile
+          context: warp
+          file: warp/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name == 'push' && github.ref_name == github.event.repository.default_branch }}
           tags: ${{ steps.meta.outputs.tags }}
