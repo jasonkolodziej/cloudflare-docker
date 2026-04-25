@@ -52,6 +52,12 @@ ARG OS_FAMILY=rhel
 ARG WARP_VERSION
 ARG GOST_VERSION
 ARG COMMIT_SHA
+# TARGETARCH is auto-populated by BuildKit (e.g. "amd64", "arm64").
+# We splice it into cache-mount IDs so the apt/dnf state for amd64 never gets
+# served to an arm64 build (and vice versa). That collision is what made the
+# original `target=/var/cache/apt` mount corrupt apt's index in the multi-arch
+# CI matrix and fail with exit 100.
+ARG TARGETARCH
 
 LABEL org.opencontainers.image.authors="jasonkolodziej"
 LABEL org.opencontainers.image.url="https://github.com/jasonkolodziej/cloudflare-docker"
@@ -60,16 +66,25 @@ LABEL GOST_VERSION=${GOST_VERSION}
 LABEL COMMIT_SHA=${COMMIT_SHA}
 
 # Install distro packages + cloudflare-warp.
-# Cache mounts speed up local rebuilds; they're ignored by layer hashing so
-# they don't interfere with the GHA cache (type=gha) used in CI.
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
-    --mount=type=cache,target=/var/cache/dnf,sharing=locked \
-    --mount=type=cache,target=/var/cache/yum,sharing=locked \
+#
+# Cache mount IDs include OS_FAMILY + BASE_IMAGE + TARGETARCH so each
+# (distro, arch) combo gets its own private cache. That:
+#   - speeds up local rebuilds (apt/dnf indices and downloaded debs are reused)
+#   - prevents cross-arch corruption seen in the multi-arch CI matrix
+#   - is ignored by GHA's layer cache hashing, so it doesn't conflict with
+#     `cache-from`/`cache-to` configured in build-warp.yml
+RUN --mount=type=cache,id=apt-cache-${OS_FAMILY}-${BASE_IMAGE}-${TARGETARCH},target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,id=apt-lists-${OS_FAMILY}-${BASE_IMAGE}-${TARGETARCH},target=/var/lib/apt/lists,sharing=locked \
+    --mount=type=cache,id=dnf-cache-${OS_FAMILY}-${BASE_IMAGE}-${TARGETARCH},target=/var/cache/dnf,sharing=locked \
+    --mount=type=cache,id=yum-cache-${OS_FAMILY}-${BASE_IMAGE}-${TARGETARCH},target=/var/cache/yum,sharing=locked \
     set -eux; \
     if [ "${OS_FAMILY}" = "debian" ]; then \
       export DEBIAN_FRONTEND=noninteractive; \
       export TZ=UTC; \
+      # Cache mount makes /var/lib/apt/lists ephemeral for this stage; the keep-cache
+      # config below stops apt-get from auto-cleaning the .deb cache between commands.
+      printf 'Binary::apt::APT::Keep-Downloaded-Packages "true";\n' \
+        > /etc/apt/apt.conf.d/keep-cache; \
       apt-get update; \
       apt-get upgrade -y; \
       apt-get install -y --no-install-recommends \
@@ -90,7 +105,9 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
       echo "deb [signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ $(lsb_release -cs) main" \
         > /etc/apt/sources.list.d/cloudflare-client.list; \
       apt-get update; \
-      apt-get install -y --no-install-recommends cloudflare-warp; \
+      apt-get install -y cloudflare-warp; \
+      # /var/cache/apt and /var/lib/apt/lists are cache mounts; they don't land
+      # in the image layer, so an explicit `apt-get clean` is unnecessary.
       # Debian's /etc/profile sets a non-root PATH that excludes /usr/sbin.
       # nft (nftables) and ip (iproute2) live in /usr/sbin; add it for all login shells.
       printf '%s\n' 'export PATH="$PATH:/usr/sbin:/sbin"' > /etc/profile.d/usrsbin.sh; \

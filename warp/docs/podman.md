@@ -82,7 +82,7 @@ podman run -d \
 ### Notes on the Dockerfile structure
 
 - Global build args used in `FROM` lines (`BASE_IMAGE`, `GOST_VERSION`) are declared **before the first `FROM`**. Buildah is stricter than BuildKit about ARG scoping; declaring them between stages causes `Error: determining starting point for build: no FROM statement found`.
-- BuildKit cache mounts (`--mount=type=cache,...`) are only honored by the BuildKit-based builders. Buildah ignores them silently and still produces a correct image, just without the cache speedup.
+- The Dockerfile uses `--mount=type=cache` for apt/dnf state, with the cache `id` keyed on `OS_FAMILY` + `BASE_IMAGE` + `TARGETARCH`. That gives each (distro, arch) combo a private cache so local rebuilds are fast and the multi-arch CI matrix doesn't cross-contaminate apt indices (which would otherwise fail with exit 100). Buildah parses but ignores cache mounts, so podman builds still succeed — just without the speedup.
 - The smoke test the CI matrix runs against the Docker build also passes against the Podman build:
 
   ```bash
