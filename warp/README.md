@@ -129,7 +129,6 @@ Examples:
 
 > [!NOTE]
 > You can access a commit-specific image with either versioned or unversioned tags, for example `v{WARP_VERSION}-rhel-8-gost-{GOST_VERSION}-{COMMIT_SHA}` or `rhel-8-gost-{GOST_VERSION}-{COMMIT_SHA}`.
-
 > [!NOTE]
 > Not all version combinations are available. Do check [the GHCR package page](https://github.com/jasonkolodziej/flow-reduce/pkgs/container/cloudflare-warp-docker) before you use one. If the version you want is not available, you can [build your own image](#build).
 
@@ -146,6 +145,11 @@ You can use GitHub Actions to build the image yourself.
 3. Manually trigger the workflow `Build and Publish WARP Image` in the Actions tab.
 
 This will build the image with the latest version of WARP client and GOST and push it to GHCR. You can also specify the version of GOST by giving input to the workflow. Building image with custom WARP client version is not supported yet.
+
+### CI workflow notes
+
+- The workflow includes an `Action Runtime Smoke Check` job and a `validate_only` input for fast validation of action/runtime upgrades without running full image matrix jobs.
+- Build cache is read on all runs, but cache write/export is limited to default-branch push runs in `Build and Publish Image Matrix`. This keeps pull request runs fast while avoiding unnecessary cache growth.
 
 If you want to build the image locally, you can use [`.github/workflows/build-warp.yml`](.github/workflows/build-warp.yml) as a reference.
 
@@ -168,10 +172,12 @@ Error like `{ err: Os { code: 1, kind: PermissionDenied, message: "Operation not
 If you are using Synology or QNAP NAS, you may encounter an error like `Failed to run NFT command`. This is because both Synology and QNAP use old iptables, while WARP uses nftables. It can't be easily fixed since nftables need to be added when the kernel is compiled.
 
 Possible solutions:
+
 - If you don't need UDP support, use the WARP's proxy mode by following the instructions in the [documentation](docs/proxy-mode.md).
 - If you need UDP support, run a fully virtualized Linux system (KVM) on your NAS or use another device to run the container.
 
 References that might help:
+
 - [Related issue](https://github.com/cmj2002/warp-docker/issues/16)
 - [Request of supporting iptables in Cloudflare Community](https://community.cloudflare.com/t/legacy-support-for-docker-containers-running-on-synology-qnap/733983)
 
