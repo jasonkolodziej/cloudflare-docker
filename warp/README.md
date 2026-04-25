@@ -157,6 +157,7 @@ This will build the image with the latest version of WARP client and GOST and pu
 - The workflow includes an `Action Runtime Smoke Check` job and a `validate_only` input for fast validation of action/runtime upgrades without running full image matrix jobs.
 - The `Resolve Build Versions` job also preflights the resolved GOST release asset URLs with retries, so upstream release issues fail early before matrix builds start.
 - Build cache is read on all runs, but cache write/export is limited to default-branch push runs in `Build and Publish Image Matrix`. This keeps pull request runs fast while avoiding unnecessary cache growth.
+- The Dockerfile uses a BuildKit cache mount for GOST release downloads, so repeated buildx builds can reuse the downloaded archive for the same resolved version.
 - The variant matrix is defined once with a YAML anchor and reused between `Build and Smoke Test Matrix` and `Build and Publish Image Matrix` to avoid drift.
 
 If you want to build the image locally, you can use [`.github/workflows/build-warp.yml`](.github/workflows/build-warp.yml) as a reference.
