@@ -7,10 +7,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: runtime
       args:
         OS_FAMILY: ${OS_FAMILY:-rhel}
         BASE_IMAGE: ${BASE_IMAGE:-redhat/ubi9-minimal:9.5}
         GOST_VERSION: ${GOST_VERSION:-3.1.0}
+        WARP_VERSION: ${WARP_VERSION:-}
+        COMMIT_SHA: ${COMMIT_SHA:-}
     container_name: warp
     restart: always
     # add removed rule back (https://github.com/opencontainers/runc/pull/3468)
