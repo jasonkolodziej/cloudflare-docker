@@ -89,7 +89,14 @@ RUN case ${TARGETPLATFORM} in \
     else \
       FILE_NAME="gost-linux-${ARCH_LEGACY}-${GOST_VERSION}.gz"; \
     fi && \
-    curl -fL -o /tmp/${FILE_NAME} https://github.com/ginuerzh/gost/releases/download/v${GOST_VERSION}/${FILE_NAME} && \
+    curl -fL \
+      --retry 6 \
+      --retry-all-errors \
+      --retry-delay 2 \
+      --connect-timeout 15 \
+      --max-time 300 \
+      -o /tmp/${FILE_NAME} \
+      "https://github.com/ginuerzh/gost/releases/download/v${GOST_VERSION}/${FILE_NAME}" && \
     if echo "${FILE_NAME}" | grep -q '.tar.gz$'; then \
       tar -xzf /tmp/${FILE_NAME} -C /usr/bin gost; \
     else \
