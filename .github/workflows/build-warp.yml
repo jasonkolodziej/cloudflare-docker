@@ -147,6 +147,7 @@ jobs:
   test:
     name: Build and Smoke Test Matrix
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.validate_only != true }}
     needs: prepare
     strategy:
@@ -206,7 +207,10 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
+      # Independent of the actual build; only useful as an early-warning when the WARP
+      # repos go down or drop a distro. Skipped on push/PR to save ~30-60s per variant.
       - name: Preflight check cloudflare-warp availability
+        if: github.event_name == 'workflow_dispatch'
         env:
           BASE_IMAGE: ${{ matrix.variant.base_image }}
           OS_FAMILY: ${{ matrix.variant.os_family }}
@@ -264,7 +268,13 @@ jobs:
             GOST_VERSION=${{ needs.prepare.outputs.gost_version }}
             WARP_VERSION=${{ needs.prepare.outputs.warp_version }}
             COMMIT_SHA=${{ github.sha }}
-          cache-from: type=gha,scope=warp-${{ needs.prepare.outputs.warp_version }}-${{ matrix.variant.name }}
+          # amd64 builds natively in seconds; mode=min keeps the cache small.
+          # The arm64 cache (written by the docker job) carries the heavier WARP-install
+          # layer that QEMU emulation makes slow.
+          cache-from: |
+            type=gha,scope=warp-${{ needs.prepare.outputs.warp_version }}-${{ matrix.variant.name }}-amd64
+            type=gha,scope=warp-${{ needs.prepare.outputs.warp_version }}-${{ matrix.variant.name }}
+          cache-to: type=gha,mode=min,scope=warp-${{ needs.prepare.outputs.warp_version }}-${{ matrix.variant.name }}-amd64
 
       - name: Smoke test image contents
         run: |
@@ -289,6 +299,7 @@ jobs:
   docker:
     name: Build and Publish Image Matrix
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.validate_only != true }}
     needs:
       - prepare
@@ -386,6 +397,8 @@ jobs:
           file: warp/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: false
+          provenance: false
+          sbom: false
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
@@ -394,7 +407,10 @@ jobs:
             GOST_VERSION=${{ needs.prepare.outputs.gost_version }}
             WARP_VERSION=${{ needs.prepare.outputs.warp_version }}
             COMMIT_SHA=${{ github.sha }}
-          cache-from: type=gha,scope=warp-${{ needs.prepare.outputs.warp_version }}-${{ matrix.variant.name }}
+          cache-from: |
+            type=gha,scope=warp-${{ needs.prepare.outputs.warp_version }}-${{ matrix.variant.name }}-amd64
+            type=gha,scope=warp-${{ needs.prepare.outputs.warp_version }}-${{ matrix.variant.name }}-arm64
+            type=gha,scope=warp-${{ needs.prepare.outputs.warp_version }}-${{ matrix.variant.name }}
 
       - name: Build and push image (refresh cache)
         if: github.event_name == 'push' && github.ref_name == github.event.repository.default_branch
@@ -404,6 +420,8 @@ jobs:
           file: warp/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
+          provenance: false
+          sbom: false
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
@@ -412,5 +430,10 @@ jobs:
             GOST_VERSION=${{ needs.prepare.outputs.gost_version }}
             WARP_VERSION=${{ needs.prepare.outputs.warp_version }}
             COMMIT_SHA=${{ github.sha }}
-          cache-from: type=gha,scope=warp-${{ needs.prepare.outputs.warp_version }}-${{ matrix.variant.name }}
-          cache-to: type=gha,mode=min,scope=warp-${{ needs.prepare.outputs.warp_version }}-${{ matrix.variant.name }}
+          # mode=max caches every stage. amd64 cache is warmed by the test job;
+          # arm64 cache rolls forward across runs. Both arches read all scopes.
+          cache-from: |
+            type=gha,scope=warp-${{ needs.prepare.outputs.warp_version }}-${{ matrix.variant.name }}-amd64
+            type=gha,scope=warp-${{ needs.prepare.outputs.warp_version }}-${{ matrix.variant.name }}-arm64
+            type=gha,scope=warp-${{ needs.prepare.outputs.warp_version }}-${{ matrix.variant.name }}
+          cache-to: type=gha,mode=max,scope=warp-${{ needs.prepare.outputs.warp_version }}-${{ matrix.variant.name }}-arm64
