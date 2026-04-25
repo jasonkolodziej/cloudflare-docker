@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1
-
 ARG BASE_IMAGE=redhat/ubi9-minimal:9.5
 
 FROM ${BASE_IMAGE}
@@ -19,8 +17,7 @@ LABEL COMMIT_SHA=${COMMIT_SHA}
 COPY entrypoint.sh /entrypoint.sh
 COPY ./healthcheck /healthcheck
 
-RUN --mount=type=cache,target=/var/cache/gost \
-  case ${TARGETPLATFORM} in \
+RUN case ${TARGETPLATFORM} in \
       "linux/amd64")   ARCH_NEW="amd64"; ARCH_LEGACY="amd64" ;; \
       "linux/arm64")   ARCH_NEW="arm64"; ARCH_LEGACY="armv8" ;; \
       *) echo "Unsupported TARGETPLATFORM: ${TARGETPLATFORM}" && exit 1 ;; \
@@ -92,17 +89,14 @@ RUN --mount=type=cache,target=/var/cache/gost \
     else \
       FILE_NAME="gost-linux-${ARCH_LEGACY}-${GOST_VERSION}.gz"; \
     fi && \
-    if [ ! -f /var/cache/gost/${FILE_NAME} ]; then \
-      curl -fL \
-        --retry 6 \
-        --retry-all-errors \
-        --retry-delay 2 \
-        --connect-timeout 15 \
-        --max-time 300 \
-        -o /var/cache/gost/${FILE_NAME} \
-        "https://github.com/ginuerzh/gost/releases/download/v${GOST_VERSION}/${FILE_NAME}"; \
-    fi && \
-    cp /var/cache/gost/${FILE_NAME} /tmp/${FILE_NAME} && \
+    curl -fL \
+      --retry 6 \
+      --retry-all-errors \
+      --retry-delay 2 \
+      --connect-timeout 15 \
+      --max-time 300 \
+      -o /tmp/${FILE_NAME} \
+      "https://github.com/ginuerzh/gost/releases/download/v${GOST_VERSION}/${FILE_NAME}" && \
     if echo "${FILE_NAME}" | grep -q '.tar.gz$'; then \
       tar -xzf /tmp/${FILE_NAME} -C /usr/bin gost; \
     else \
