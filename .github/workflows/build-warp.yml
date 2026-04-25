@@ -143,13 +143,13 @@ jobs:
             local_tag: warp:test-debian13
           - name: fedora34
             os_family: rhel
-            base_image: fedora-minimal:34
+            base_image: registry.fedoraproject.org/fedora-minimal:34
             distro: fedora
             os_version: "34"
             local_tag: warp:test-fedora34
           - name: fedora35
             os_family: rhel
-            base_image: fedora-minimal:35
+            base_image: registry.fedoraproject.org/fedora-minimal:35
             distro: fedora
             os_version: "35"
             local_tag: warp:test-fedora35
@@ -209,7 +209,11 @@ jobs:
               rpm --import https://pkg.cloudflareclient.com/pubkey.gpg
               curl -fsSL https://pkg.cloudflareclient.com/cloudflare-warp-ascii.repo > /etc/yum.repos.d/cloudflare-warp.repo
               $PM -y makecache >/dev/null 2>&1 || true
-              $PM -y info cloudflare-warp >/dev/null
+              if [ "$PM" = "microdnf" ]; then
+                $PM -y repoquery cloudflare-warp >/dev/null
+              else
+                $PM -y info cloudflare-warp >/dev/null
+              fi
             '
           else
             echo "Unsupported OS_FAMILY: ${OS_FAMILY}"
@@ -288,12 +292,12 @@ jobs:
             os_version: "13"
           - name: fedora34
             os_family: rhel
-            base_image: fedora-minimal:34
+            base_image: registry.fedoraproject.org/fedora-minimal:34
             distro: fedora
             os_version: "34"
           - name: fedora35
             os_family: rhel
-            base_image: fedora-minimal:35
+            base_image: registry.fedoraproject.org/fedora-minimal:35
             distro: fedora
             os_version: "35"
           - name: ubuntu2004

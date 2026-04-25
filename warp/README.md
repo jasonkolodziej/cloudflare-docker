@@ -138,7 +138,7 @@ Current automated variants include `rhel-8`, `debian-11`, `debian-12`, `debian-1
 
 CI uses slim/minimal base images where available:
 
-- RHEL family: `rockylinux:8-minimal`, `fedora-minimal:{34,35}`
+- RHEL family: `rockylinux:8-minimal`, `registry.fedoraproject.org/fedora-minimal:{34,35}`
 - Debian family: `debian:{11,12,13}-slim`
 - Ubuntu variants currently use standard tags (`ubuntu:20.04`, `ubuntu:22.04`, `ubuntu:24.04`) because upstream `-minimal` tags are not published
 
