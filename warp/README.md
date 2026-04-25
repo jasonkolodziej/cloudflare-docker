@@ -1,6 +1,6 @@
 # warp-docker
 
-Published image: `ghcr.io/jasonkolodziej/cloudflare-warp-docker`
+Published image: `ghcr.io/jasonkolodziej/cloudflare-docker-warp`
 
 Run official [Cloudflare WARP](https://1.1.1.1/) client in Docker.
 
@@ -16,7 +16,7 @@ To run the published image from this repository's registry, use `compose.warp.ym
 ```yaml
 services:
   warp:
-    image: ghcr.io/jasonkolodziej/cloudflare-warp-docker:${WARP_IMAGE_TAG}
+    image: ghcr.io/jasonkolodziej/cloudflare-docker-warp:${WARP_IMAGE_TAG}
     container_name: warp
     restart: always
     # add removed rule back (https://github.com/opencontainers/runc/pull/3468)
@@ -130,7 +130,7 @@ Examples:
 > [!NOTE]
 > You can access a commit-specific image with either versioned or unversioned tags, for example `v{WARP_VERSION}-rhel-8-gost-{GOST_VERSION}-{COMMIT_SHA}` or `rhel-8-gost-{GOST_VERSION}-{COMMIT_SHA}`.
 > [!NOTE]
-> Not all version combinations are available. Do check [the GHCR package page](https://github.com/jasonkolodziej/cloudflare-warp-docker/pkgs/container/cloudflare-warp-docker) before you use one. If the version you want is not available, you can [build your own image](#build).
+> Not all version combinations are available. Do check [the GHCR package page](https://github.com/jasonkolodziej/cloudflare-docker/pkgs/container/cloudflare-docker-warp) before you use one. If the version you want is not available, you can [build your own image](#build).
 
 #### Available distro variants
 

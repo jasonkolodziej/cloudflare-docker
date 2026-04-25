@@ -1,8 +1,8 @@
-#? ghcr.io/jasonkolodziej/cloudflare-warp-docker
+#? ghcr.io/jasonkolodziej/cloudflare-docker-warp
 
 services:
   warp:
-    image: ${WARP_IMAGE_NAME:-ghcr.io/jasonkolodziej/cloudflare-warp-docker}:${WARP_IMAGE_TAG:?Set WARP_IMAGE_TAG, e.g. rhel-latest or debian-latest}
+    image: ${WARP_IMAGE_NAME:-ghcr.io/jasonkolodziej/cloudflare-docker-warp}:${WARP_IMAGE_TAG:?Set WARP_IMAGE_TAG, e.g. rhel-latest or debian-latest}
     container_name: warp
     restart: always
     # add removed rule back (https://github.com/opencontainers/runc/pull/3468)

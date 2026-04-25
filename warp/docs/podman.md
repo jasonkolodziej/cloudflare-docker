@@ -15,7 +15,7 @@ podman run -d \
   --sysctl net.ipv6.conf.all.disable_ipv6=0 \
   --sysctl net.ipv4.conf.all.src_valid_mark=1 \
   -v ./data:/var/lib/cloudflare-warp \
-  ghcr.io/jasonkolodziej/cloudflare-warp-docker:${WARP_IMAGE_TAG}
+  ghcr.io/jasonkolodziej/cloudflare-docker-warp:${WARP_IMAGE_TAG}
 ```
 
 > [!NOTE]

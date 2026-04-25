@@ -21,7 +21,7 @@ version: "3"
 
 services:
   warp:
-    image: ghcr.io/jasonkolodziej/cloudflare-warp-docker:${WARP_IMAGE_TAG}
+    image: ghcr.io/jasonkolodziej/cloudflare-docker-warp:${WARP_IMAGE_TAG}
     container_name: warp
     restart: always
     # ===== Add the following 2 lines =====
@@ -63,7 +63,7 @@ version: "3"
 
 services:
   warp:
-    image: ghcr.io/jasonkolodziej/cloudflare-warp-docker:${WARP_IMAGE_TAG}
+    image: ghcr.io/jasonkolodziej/cloudflare-docker-warp:${WARP_IMAGE_TAG}
     container_name: warp
     restart: always
     # ===== Add the following 2 lines =====

@@ -9,7 +9,7 @@ ARG COMMIT_SHA
 ARG TARGETPLATFORM
 
 LABEL org.opencontainers.image.authors="jasonkolodziej"
-LABEL org.opencontainers.image.url="https://github.com/jasonkolodziej/cloudflare-warp-docker"
+LABEL org.opencontainers.image.url="https://github.com/jasonkolodziej/cloudflare-docker"
 LABEL WARP_VERSION=${WARP_VERSION}
 LABEL GOST_VERSION=${GOST_VERSION}
 LABEL COMMIT_SHA=${COMMIT_SHA}
