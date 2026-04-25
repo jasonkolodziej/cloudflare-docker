@@ -83,6 +83,7 @@ podman run -d \
 
 - Global build args used in `FROM` lines (`BASE_IMAGE`, `GOST_VERSION`) are declared **before the first `FROM`**. Buildah is stricter than BuildKit about ARG scoping; declaring them between stages causes `Error: determining starting point for build: no FROM statement found`.
 - The Dockerfile uses `--mount=type=cache` for apt/dnf state, with the cache `id` keyed on `OS_FAMILY` + `BASE_IMAGE` + `TARGETARCH`. That gives each (distro, arch) combo a private cache so local rebuilds are fast and the multi-arch CI matrix doesn't cross-contaminate apt indices (which would otherwise fail with exit 100). Buildah parses but ignores cache mounts, so podman builds still succeed — just without the speedup.
+- On RHEL-family images, the Dockerfile now auto-selects `curl-minimal` when available and falls back to `curl` when not (for example `rockylinux:8-minimal`). This avoids `curl`/`curl-minimal` conflict errors on UBI9 while preserving Rocky 8 compatibility.
 - The smoke test the CI matrix runs against the Docker build also passes against the Podman build:
 
   ```bash

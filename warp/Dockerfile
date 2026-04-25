@@ -118,9 +118,10 @@ RUN --mount=type=cache,id=apt-cache-${OS_FAMILY}-${BASE_IMAGE}-${TARGETARCH},tar
       elif command -v microdnf >/dev/null 2>&1; then PM=microdnf; \
       else echo "No supported RPM package manager found" >&2; exit 1; fi; \
       $PM -y update; \
+      if $PM -y install curl-minimal >/dev/null 2>&1; then CURL_PKG=curl-minimal; else CURL_PKG=curl; fi; \
       $PM -y install \
         ca-certificates \
-        curl \
+        ${CURL_PKG} \
         sudo \
         dbus-daemon \
         jq \
