@@ -152,51 +152,12 @@ You can use GitHub Actions to build the image yourself.
 
 This will build the image with the latest version of WARP client and GOST and push it to GHCR. You can also specify the version of GOST by giving input to the workflow. Building image with custom WARP client version is not supported yet.
 
-### Migrate GHCR tags without rebuild
-
-If you changed the published image name and want to copy all tags without rebuilding images, use:
-
-```bash
-./scripts/retag-ghcr-package.sh
-```
-
-The script uses `skopeo copy --all` and keeps multi-arch manifests. Authenticate first, for example:
-
-```bash
-echo "$GHCR_PAT" | podman login ghcr.io -u <github-user> --password-stdin
-```
-
-Useful options:
-
-- `--dry-run` to preview all copy operations.
-- `--only-tags rhel-latest,debian-latest` to migrate specific tags.
-- `--source-image` / `--target-image` to override defaults.
-- If legacy source package no longer exists, script exits successfully with "nothing to copy".
-- Use `--fail-missing-source` if you prefer strict failure behavior.
-
-Check migration progress at any time:
-
-```bash
-./scripts/check-ghcr-retag-status.sh --show-missing
-```
-
 ### CI workflow notes
 
 - The workflow includes an `Action Runtime Smoke Check` job and a `validate_only` input for fast validation of action/runtime upgrades without running full image matrix jobs.
 - The `Resolve Build Versions` job also preflights the resolved GOST release asset URLs with retries, so upstream release issues fail early before matrix builds start.
 - Build cache is read on all runs, but cache write/export is limited to default-branch push runs in `Build and Publish Image Matrix`. This keeps pull request runs fast while avoiding unnecessary cache growth.
 - The variant matrix is defined once with a YAML anchor and reused between `Build and Smoke Test Matrix` and `Build and Publish Image Matrix` to avoid drift.
-- `Build and Publish WARP Image` now includes a GHCR guard that blocks build/publish jobs if legacy package-tag migration is incomplete or the completion signal is missing.
-
-### GHCR backfill workflow (no rebuild)
-
-Use workflow dispatch `Backfill GHCR Tags (No Rebuild)` to copy missing tags from the legacy package name to the current package name.
-
-- Workflow file: [`.github/workflows/retag-ghcr-backfill.yml`](../.github/workflows/retag-ghcr-backfill.yml)
-- It runs the migration script and validates that no tags are missing.
-- On success (non-dry-run), it sets repository variable `GHCR_RETAG_COMPLETE=true` as the release gate signal.
-
-If `Build and Publish WARP Image` is blocked by the GHCR guard, run this dispatch workflow and then rerun the build workflow.
 
 If you want to build the image locally, you can use [`.github/workflows/build-warp.yml`](.github/workflows/build-warp.yml) as a reference.
 
