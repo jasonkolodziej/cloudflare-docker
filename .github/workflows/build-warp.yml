@@ -10,12 +10,18 @@ name: Build and Publish WARP Image
   pull_request:
     paths:
       - warp/**
+      - .github/workflows/build-warp.yml
   workflow_dispatch:
     inputs:
       GOST_VERSION:
         description: Version of gost. If empty, the latest version will be used.
         required: false
         type: string
+      validate_only:
+        description: Run lightweight action validation only (skip image build/test/push jobs).
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -27,8 +33,48 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  action-smoke:
+    runs-on: ubuntu-latest
+    env:
+      IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}-warp
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Verify github-script action
+        uses: actions/github-script@v9
+        with:
+          script: |
+            core.info(`github-script smoke check on ${context.ref}`);
+
+      - name: Verify docker/login-action
+        if: github.event_name == 'push' && github.ref_name == github.event.repository.default_branch
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify docker/metadata-action
+        id: smoke_meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          flavor: |
+            latest=false
+          tags: |
+            type=sha,prefix=smoke-
+
+      - name: Show smoke metadata tags
+        run: |
+          echo "Smoke tags:"
+          printf '%s\n' "${{ steps.smoke_meta.outputs.tags }}"
+
   prepare:
     runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.validate_only != true }}
+    needs: action-smoke
     outputs:
       gost_version: ${{ steps.get-gost-version.outputs.GOST_VERSION }}
       warp_version: ${{ steps.get-warp-client-version.outputs.WARP_VERSION }}
@@ -62,6 +108,7 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.validate_only != true }}
     needs: prepare
     strategy:
       fail-fast: false
@@ -207,6 +254,7 @@ jobs:
 
   docker:
     runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.validate_only != true }}
     needs:
       - prepare
       - test
