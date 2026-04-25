@@ -100,6 +100,42 @@ jobs:
             exit 1
           fi
 
+      - name: Preflight check gost release assets
+        env:
+          GOST_VERSION: ${{ steps.get-gost-version.outputs.GOST_VERSION }}
+        run: |
+          set -euo pipefail
+
+          major_version="${GOST_VERSION%%.*}"
+          version_tail="${GOST_VERSION#*.}"
+          minor_version="${version_tail%%.*}"
+
+          resolve_asset_name() {
+            local arch_new="$1"
+            local arch_legacy="$2"
+
+            if (( major_version >= 3 || (major_version == 2 && minor_version >= 12) )); then
+              printf 'gost_%s_linux_%s.tar.gz' "$GOST_VERSION" "$arch_new"
+            else
+              printf 'gost-linux-%s-%s.gz' "$arch_legacy" "$GOST_VERSION"
+            fi
+          }
+
+          for platform in amd64 arm64; do
+            if [ "$platform" = "amd64" ]; then
+              asset_name="$(resolve_asset_name amd64 amd64)"
+            else
+              asset_name="$(resolve_asset_name arm64 armv8)"
+            fi
+
+            asset_url="https://github.com/ginuerzh/gost/releases/download/v${GOST_VERSION}/${asset_name}"
+            echo "Checking GOST asset for ${platform}: ${asset_url}"
+            curl --fail --silent --show-error --location \
+              --retry 5 --retry-all-errors --retry-delay 2 \
+              --output /dev/null \
+              "$asset_url"
+          done
+
       - name: Get WARP client version
         id: get-warp-client-version
         run: |
