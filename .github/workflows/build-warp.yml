@@ -37,7 +37,7 @@ jobs:
     name: Action Runtime Smoke Check
     runs-on: ubuntu-latest
     env:
-      IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}-warp
+      IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
     steps:
       - name: Checkout
@@ -72,11 +72,109 @@ jobs:
           echo "Smoke tags:"
           printf '%s\n' "${{ steps.smoke_meta.outputs.tags }}"
 
+  ghcr-gate:
+    name: Validate Image Name and GHCR Migration Signal
+    runs-on: ubuntu-latest
+    needs: action-smoke
+    permissions:
+      contents: read
+      packages: read
+      actions: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Validate workflow image name base
+        env:
+          EXPECTED_IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}
+        run: |
+          set -euo pipefail
+          if grep -nE "repository\.name \}\}-warp|cloudflare-warp-docker-warp" .github/workflows/build-warp.yml >/dev/null 2>&1; then
+            echo "Found legacy '-warp' image naming in build workflow."
+            {
+              echo "## GHCR Gate"
+              echo "Status: blocked"
+              echo "Reason: legacy '-warp' image naming found in build workflow."
+              echo "Expected base image name: ${EXPECTED_IMAGE_NAME}"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "Image base naming validated: ${EXPECTED_IMAGE_NAME}"
+
+      - name: Ensure GHCR tag migration is complete
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          signal_value=""
+          if gh api "/repos/${GITHUB_REPOSITORY}/actions/variables/GHCR_RETAG_COMPLETE" >/tmp/ghcr_retag_var.json 2>/dev/null; then
+            signal_value="$(jq -r '.value // ""' /tmp/ghcr_retag_var.json)"
+          fi
+
+          status_output="$(./warp/scripts/check-ghcr-retag-status.sh --ignore-missing-source)"
+
+          # Require full backfill when a legacy source package still exists.
+          if ./warp/scripts/check-ghcr-retag-status.sh --strict --ignore-missing-source; then
+            if printf '%s\n' "${status_output}" | grep -q "Source package not found"; then
+              echo "No legacy source package found. Migration check passes."
+              {
+                echo "## GHCR Gate"
+                echo "Status: passed"
+                echo "Reason: no legacy source package exists; no migration required."
+                echo
+                echo "### Status Output"
+                printf '%s\n' "${status_output}"
+              } >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+
+            if [[ "${signal_value}" != "true" ]]; then
+              echo "GHCR migration is complete but signal is not set."
+              echo "Set repository variable GHCR_RETAG_COMPLETE=true or run the dispatch backfill workflow."
+              {
+                echo "## GHCR Gate"
+                echo "Status: blocked"
+                echo "Reason: migration is complete but signal GHCR_RETAG_COMPLETE is not true."
+                echo
+                echo "### Status Output"
+                printf '%s\n' "${status_output}"
+              } >> "$GITHUB_STEP_SUMMARY"
+              exit 1
+            fi
+
+            echo "GHCR migration is complete and signal is set."
+            {
+              echo "## GHCR Gate"
+              echo "Status: passed"
+              echo "Reason: migration complete and signal GHCR_RETAG_COMPLETE=true."
+              echo
+              echo "### Status Output"
+              printf '%s\n' "${status_output}"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          echo "GHCR migration has missing tags. Run the dispatch backfill workflow to fix."
+          missing_output="$(./warp/scripts/check-ghcr-retag-status.sh --show-missing || true)"
+          {
+            echo "## GHCR Gate"
+            echo "Status: blocked"
+            echo "Reason: legacy source package still has tags missing in the target package."
+            echo "Action: run workflow dispatch 'Backfill GHCR Tags (No Rebuild)'."
+            echo
+            echo "### Missing Tag Report"
+            printf '%s\n' "${missing_output}"
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 1
+
   prepare:
     name: Resolve Build Versions
     runs-on: ubuntu-latest
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.validate_only != true }}
-    needs: action-smoke
+    needs:
+      - action-smoke
+      - ghcr-gate
     outputs:
       gost_version: ${{ steps.get-gost-version.outputs.GOST_VERSION }}
       warp_version: ${{ steps.get-warp-client-version.outputs.WARP_VERSION }}
@@ -298,7 +396,7 @@ jobs:
       matrix:
         variant: *warp_variants
     env:
-      IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}-warp
+      IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}
 
     steps:
       - name: Checkout
