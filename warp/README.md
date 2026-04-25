@@ -136,6 +136,12 @@ Examples:
 
 Current automated variants include `rhel-8`, `debian-11`, `debian-12`, `debian-13`, `fedora-34`, `fedora-35`, `ubuntu-20.04`, `ubuntu-22.04`, and `ubuntu-24.04`.
 
+CI uses slim/minimal base images where available:
+
+- RHEL family: `rockylinux:8-minimal`, `registry.fedoraproject.org/fedora-minimal:{34,35}`
+- Debian family: `debian:{11,12,13}-slim`
+- Ubuntu variants currently use standard tags (`ubuntu:20.04`, `ubuntu:22.04`, `ubuntu:24.04`) because upstream `-minimal` tags are not published
+
 ## Build
 
 You can use GitHub Actions to build the image yourself.
@@ -150,6 +156,7 @@ This will build the image with the latest version of WARP client and GOST and pu
 
 - The workflow includes an `Action Runtime Smoke Check` job and a `validate_only` input for fast validation of action/runtime upgrades without running full image matrix jobs.
 - Build cache is read on all runs, but cache write/export is limited to default-branch push runs in `Build and Publish Image Matrix`. This keeps pull request runs fast while avoiding unnecessary cache growth.
+- The variant matrix is defined once with a YAML anchor and reused between `Build and Smoke Test Matrix` and `Build and Publish Image Matrix` to avoid drift.
 
 If you want to build the image locally, you can use [`.github/workflows/build-warp.yml`](.github/workflows/build-warp.yml) as a reference.
 

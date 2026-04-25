@@ -116,61 +116,52 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        variant:
+        variant: &warp_variants
           - name: rhel8
             os_family: rhel
-            base_image: rockylinux:8
+            base_image: rockylinux:8-minimal
             distro: rhel
             os_version: "8"
-            local_tag: warp:test-rhel8
           - name: debian11
             os_family: debian
-            base_image: debian:11
+            base_image: debian:11-slim
             distro: debian
             os_version: "11"
-            local_tag: warp:test-debian11
           - name: debian12
             os_family: debian
-            base_image: debian:12
+            base_image: debian:12-slim
             distro: debian
             os_version: "12"
-            local_tag: warp:test-debian12
           - name: debian13
             os_family: debian
-            base_image: debian:13
+            base_image: debian:13-slim
             distro: debian
             os_version: "13"
-            local_tag: warp:test-debian13
           - name: fedora34
             os_family: rhel
-            base_image: fedora:34
+            base_image: registry.fedoraproject.org/fedora-minimal:34
             distro: fedora
             os_version: "34"
-            local_tag: warp:test-fedora34
           - name: fedora35
             os_family: rhel
-            base_image: fedora:35
+            base_image: registry.fedoraproject.org/fedora-minimal:35
             distro: fedora
             os_version: "35"
-            local_tag: warp:test-fedora35
           - name: ubuntu2004
             os_family: debian
             base_image: ubuntu:20.04
             distro: ubuntu
             os_version: "20.04"
-            local_tag: warp:test-ubuntu2004
           - name: ubuntu2204
             os_family: debian
             base_image: ubuntu:22.04
             distro: ubuntu
             os_version: "22.04"
-            local_tag: warp:test-ubuntu2204
           - name: ubuntu2404
             os_family: debian
             base_image: ubuntu:24.04
             distro: ubuntu
             os_version: "24.04"
-            local_tag: warp:test-ubuntu2404
 
     steps:
       - name: Checkout
@@ -209,7 +200,11 @@ jobs:
               rpm --import https://pkg.cloudflareclient.com/pubkey.gpg
               curl -fsSL https://pkg.cloudflareclient.com/cloudflare-warp-ascii.repo > /etc/yum.repos.d/cloudflare-warp.repo
               $PM -y makecache >/dev/null 2>&1 || true
-              $PM -y info cloudflare-warp >/dev/null
+              if [ "$PM" = "microdnf" ]; then
+                $PM -y repoquery cloudflare-warp >/dev/null
+              else
+                $PM -y info cloudflare-warp >/dev/null
+              fi
             '
           else
             echo "Unsupported OS_FAMILY: ${OS_FAMILY}"
@@ -226,7 +221,7 @@ jobs:
           push: false
           provenance: false
           sbom: false
-          tags: ${{ matrix.variant.local_tag }}
+          tags: warp:test-${{ matrix.variant.name }}
           build-args: |
             OS_FAMILY=${{ matrix.variant.os_family }}
             BASE_IMAGE=${{ matrix.variant.base_image }}
@@ -237,7 +232,7 @@ jobs:
 
       - name: Smoke test image contents
         run: |
-          docker run --rm --entrypoint /bin/bash ${{ matrix.variant.local_tag }} -lc '
+          docker run --rm --entrypoint /bin/bash warp:test-${{ matrix.variant.name }} -lc '
             set -e
             command -v sudo
             command -v dbus-daemon
@@ -265,52 +260,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        variant:
-          - name: rhel8
-            os_family: rhel
-            base_image: rockylinux:8
-            distro: rhel
-            os_version: "8"
-          - name: debian11
-            os_family: debian
-            base_image: debian:11
-            distro: debian
-            os_version: "11"
-          - name: debian12
-            os_family: debian
-            base_image: debian:12
-            distro: debian
-            os_version: "12"
-          - name: debian13
-            os_family: debian
-            base_image: debian:13
-            distro: debian
-            os_version: "13"
-          - name: fedora34
-            os_family: rhel
-            base_image: fedora:34
-            distro: fedora
-            os_version: "34"
-          - name: fedora35
-            os_family: rhel
-            base_image: fedora:35
-            distro: fedora
-            os_version: "35"
-          - name: ubuntu2004
-            os_family: debian
-            base_image: ubuntu:20.04
-            distro: ubuntu
-            os_version: "20.04"
-          - name: ubuntu2204
-            os_family: debian
-            base_image: ubuntu:22.04
-            distro: ubuntu
-            os_version: "22.04"
-          - name: ubuntu2404
-            os_family: debian
-            base_image: ubuntu:24.04
-            distro: ubuntu
-            os_version: "24.04"
+        variant: *warp_variants
     env:
       IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}-warp
 
